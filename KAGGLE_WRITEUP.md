@@ -5,7 +5,7 @@
 **Project:** DevMind — Multi-Agent AI Developer Assistant  
 **Author:** [Raghuvansyn](https://github.com/Raghuvansyn)  
 **Repository:** [github.com/Raghuvansyn/DevMind](https://github.com/Raghuvansyn/DevMind)  
-**Demo Video:** [YouTube](https://youtu.be/r1_tX-W0pPw)  
+**Demo Video:** [YouTube](https://youtu.be/-DHTtXIJ8g8)  
 **Competition:** [Kaggle AI Agents Intensive Capstone 2025](https://www.kaggle.com/competitions/ai-agents-intensive-capstone-2025)
 
 ---
