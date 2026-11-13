@@ -1,0 +1,14 @@
+[
+  {"prompt": "Review this function for bugs", "expected_agent": "code_analyst"},
+  {"prompt": "Explain the runtime of binary search", "expected_agent": "code_analyst"},
+  {"prompt": "Review safe_divide for bugs", "expected_agent": "code_analyst"},
+  {"prompt": "Review a document_id parser", "expected_agent": "code_analyst"},
+  {"prompt": "Write a README for this CLI", "expected_agent": "doc_writer"},
+  {"prompt": "Add docstrings to def add(a, b): return a+b", "expected_agent": "doc_writer"},
+  {"prompt": "Generate documentation for this function", "expected_agent": "doc_writer"},
+  {"prompt": "Add comments to this code", "expected_agent": "doc_writer"},
+  {"prompt": "Scan this query for SQL injection", "expected_agent": "security_scan"},
+  {"prompt": "Find security vulnerabilities in this handler", "expected_agent": "security_scan"},
+  {"prompt": "Is this password storage safe?", "expected_agent": "security_scan"},
+  {"prompt": "Document security risks of this endpoint", "expected_agent": "security_scan"}
+]

@@ -9,4 +9,5 @@ class SecurityScanAgent(BaseAgent):
         self._scan_count = 0
     def run(self, user_input, skill_context=""):
         self._scan_count += 1
-        return f"[Security Scanner | Scan #{self._scan_count}]\n{self.call_glm(f'SCAN #{self._scan_count}\n{user_input}', skill_context)}"
+        response = self.call_glm(user_input, skill_context)
+        return f"[Security Scanner | Scan #{self._scan_count}]\n{response}"

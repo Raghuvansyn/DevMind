@@ -1,125 +1,37 @@
-# 🧠 DevMind — Kaggle AI Agents Intensive Capstone 2025
+# DevMind implementation notes
 
-## Submission Overview
+This repository describes DevMind as a project for the [Kaggle AI Agents Intensive Capstone 2025](https://www.kaggle.com/competitions/ai-agents-intensive-capstone-2025). The repository history attributes the original implementation to [Ankit Singh Raghuvanshi](https://github.com/Raghuvansyn). Participation, submission, and competition results have not been independently verified from the repository.
 
-**Project:** DevMind — Multi-Agent AI Developer Assistant  
-**Author:** [Raghuvansyn](https://github.com/Raghuvansyn)  
-**Repository:** [github.com/Raghuvansyn/DevMind](https://github.com/Raghuvansyn/DevMind)  
-**Demo Video:** [YouTube](https://youtu.be/-DHTtXIJ8g8)  
-**Competition:** [Kaggle AI Agents Intensive Capstone 2025](https://www.kaggle.com/competitions/ai-agents-intensive-capstone-2025)
+The [previously recorded video link](https://youtu.be/-DHTtXIJ8g8) is preserved; its contents and availability were not verified during the code review.
 
----
+## Problem and implementation
 
-## Problem Statement
+DevMind offers one Python CLI for requesting code reviews, documentation drafts, and potential security findings. Its orchestrator applies validation and a regex input filter, chooses one specialist using keyword rules, loads that specialist's `SKILL.md`, and makes one Groq chat completion request.
 
-Developers constantly context-switch between tools for different tasks — one tool for code review, another for security analysis, yet another for documentation. This fragmentation reduces productivity and increases cognitive load.
+The three specialists share the same `BaseAgent` HTTP implementation and model; their roles differ through system prompts and skill context. They do not collaborate on a request or autonomously execute tools. Specialization is a design choice, and no comparative evaluation establishes that it outperforms a single prompt.
 
-**DevMind** solves this by providing a unified, intelligent interface that automatically understands what the developer needs and routes the request to the best-suited AI specialist.
+The local helper named `MCPServer` caches skill files and offers a workspace-contained file reader. It is ordinary Python code with no Model Context Protocol transport, protocol methods, or external MCP client integration. The CLI does not read a file merely because its path appears in input.
 
----
+## Model and state
 
-## Solution Architecture
+The configured model is `llama-3.3-70b-versatile` via Groq, with temperature `0.3`, a maximum of `1024` output tokens, and a `30` second HTTP timeout. Model access depends on provider availability and an API key.
 
-DevMind implements a **multi-agent orchestration pattern** with the following components:
+Every model call contains the current input and system/skill instructions. Previous conversation messages are not sent. The process retains a security scan counter and an in-memory request history, so describing the entire application as stateless or as a zero-trust system would be inaccurate.
 
-### Orchestrator
-- Receives natural language input from the developer
-- Runs a **security guard** (regex-based filtering) to block dangerous patterns
-- Performs **intent classification** using keyword matching
-- Dispatches the request to the appropriate specialist agent
+## Validation and evidence
 
-### Specialist Agents
+The offline suite verifies request construction, skill injection, routing, file containment, blocked requests, missing keys, and provider failure handling. Twelve hand-authored routing examples are regression cases, not a representative accuracy benchmark. The offline demonstration replaces the provider HTTP response with a clearly labeled fixture.
 
-| Agent | Role | System Prompt Focus |
-|---|---|---|
-| **Code Analyst** | Reviews code for bugs, performance issues, and anti-patterns | Issue → Explanation → Fix with before/after code |
-| **Security Scanner** | Identifies OWASP Top 10 vulnerabilities | Risk Level → Vulnerability → Description → Recommendation |
-| **Doc Writer** | Generates documentation, docstrings, and READMEs | Google-style docstrings, structured README format |
+No live model quality, security detection accuracy, latency, cost, scalability, or production readiness result is established by these checks. Follow the [README](README.md) for reproducible setup, commands, local verification details, and remaining limitations.
 
-### MCP Server (Model Context Protocol)
-- Serves as a **tool layer** providing progressive skill disclosure
-- Each agent has a corresponding `SKILL.md` file defining its capabilities
-- Skill context is loaded on-demand and injected into the agent's system prompt
-- Also provides secure file reading with extension whitelisting and path traversal protection
+## Future directions
 
-### LLM Backend
-- **Model:** Llama 3.3 70B via Groq API
-- **Temperature:** 0.3 (focused, deterministic responses)
-- **Max Tokens:** 1024
-
----
-
-## Key Concepts Demonstrated
-
-### 1. Multi-Agent Orchestration
-The system uses a central orchestrator that manages multiple specialized agents, each with distinct capabilities and system prompts.
-
-### 2. Intent Classification & Task Routing
-Natural language input is classified into categories and routed to the most appropriate agent without requiring the user to manually select one.
-
-### 3. Progressive Disclosure via SKILL.md
-Agents receive domain-specific context through SKILL.md files served by the MCP server. This keeps base prompts lean while allowing rich, specialized behavior when needed.
-
-### 4. Security Guardrails
-Input is filtered through regex patterns that detect and block potentially dangerous commands (`rm -rf`, `eval()`, `exec()`, `os.system()`, etc.).
-
-### 5. Audit Logging
-Every interaction is logged with agent attribution, enabling full traceability of the system's routing decisions.
-
-### 6. Zero-Trust Design
-The security scanner agent operates with ephemeral context — no state is persisted between scans, following zero-trust principles.
-
----
-
-## Technical Implementation
-
-### File Structure
-
-```
-DevMind/
-├── orchestrator.py        # Main orchestrator + routing + security guard
-├── agents/
-│   ├── base_agent.py      # Base class with Groq API integration
-│   ├── code_analyst.py    # Code review specialist
-│   ├── security_scan.py   # Security vulnerability scanner
-│   └── doc_writer.py      # Documentation generator
-├── skills/
-│   ├── code_analyst/SKILL.md
-│   ├── security_scan/SKILL.md
-│   └── doc_writer/SKILL.md
-├── mcp/
-│   └── mcp_server.py      # MCP server for skill context
-└── requirements.txt
-```
-
-### Dependencies
-- `requests>=2.31.0` — HTTP client for Groq API
-- `python-dotenv>=1.0.0` — Environment variable management
-
----
-
-## What I Learned
-
-1. **Agent specialization** produces better results than a single general-purpose agent
-2. **Progressive disclosure** through SKILL.md files is an effective way to manage prompt complexity
-3. **Security-first design** is essential when building AI systems that process arbitrary user input
-4. **MCP (Model Context Protocol)** provides a clean abstraction for tool and context management
-5. **Groq's inference speed** makes interactive multi-agent systems practical for real-time use
-
----
-
-## Future Directions
-
-- Web dashboard for real-time agent visualization
-- GitHub integration for automated PR reviews
-- Memory and RAG for context-aware multi-turn conversations
-- Additional specialist agents (testing, deployment, refactoring)
-- Docker and cloud deployment
-
----
+Priorities are an explicit route selector, an independent review-quality evaluation with human labels, and structured findings validation. Real MCP integration, retrieval, GitHub integration, persistent memory, a web interface, and deployment remain future work.
 
 ## Acknowledgments
 
-- **Kaggle** for the AI Agents Intensive program
-- **Groq** for fast LLM inference
-- **Meta** for the Llama 3.3 70B model
+- Kaggle for the AI Agents Intensive program.
+- Groq for the inference API.
+- Meta for the Llama model.
+
+The existing MIT license and copyright notice are unchanged.

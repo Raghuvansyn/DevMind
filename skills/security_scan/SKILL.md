@@ -2,7 +2,9 @@
 
 ## Purpose
 Identify security vulnerabilities using OWASP Top 10 principles.
-Ephemeral context — no state persisted between scans (zero-trust design).
+Each model request contains only its system prompt, this skill, and the current input.
+The process keeps a scan counter and an in-memory request history. This is not a
+security boundary or a substitute for validated static analysis and human review.
 
 ## Trigger conditions
 - User asks about security, vulnerabilities, or scanning code
