@@ -1,408 +1,127 @@
-<p align="center">
-  <img src="assets/banner.png" alt="DevMind Banner" width="100%"/>
-</p>
+# DevMind
 
-<p align="center">
-  <strong>Multi-Agent AI Developer Assistant</strong><br/>
-  <em>Intelligently routes developer requests to specialized AI agents for code review, security analysis, and documentation generation.</em>
-</p>
+DevMind is a Python CLI prototype for developers who want code review, documentation drafts, or security review suggestions through one interface. A deterministic keyword router selects one of three specialist prompts, loads its local skill context, and sends one request to Groq.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python"/>
-  <img src="https://img.shields.io/badge/LLM-Llama_3.3_70B-FF6B35?style=for-the-badge&logo=meta&logoColor=white" alt="LLM"/>
-  <img src="https://img.shields.io/badge/Groq-API-F55036?style=for-the-badge&logo=groq&logoColor=white" alt="Groq"/>
-  <img src="https://img.shields.io/badge/MCP-Server-8B5CF6?style=for-the-badge&logo=server&logoColor=white" alt="MCP"/>
-  <img src="https://img.shields.io/badge/License-MIT-22C55E?style=for-the-badge" alt="License"/>
-  <img src="https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-20BEFF?style=for-the-badge&logo=kaggle&logoColor=white" alt="Kaggle"/>
-</p>
+The original implementation, prompts, and skill files are attributed to Ankit Singh Raghuvanshi in this repository's commit history. The project demonstrates Python application structure, HTTP integration, prompt composition, and request routing. Model suggestions require human review.
 
-<p align="center">
-  <a href="#-features">Features</a> •
-  <a href="#-architecture">Architecture</a> •
-  <a href="#-quick-start">Quick Start</a> •
-  <a href="#-demo">Demo</a> •
-  <a href="#-project-structure">Project Structure</a> •
-  <a href="#-how-it-works">How It Works</a> •
-  <a href="#-concepts-demonstrated">Concepts</a> •
-  <a href="#-contributing">Contributing</a>
-</p>
+## Current implementation
 
----
+- Code Analyst: requests issue explanations and proposed fixes.
+- Doc Writer: requests docstrings, README drafts, and comments.
+- Security Scanner: requests potential vulnerabilities and remediation suggestions.
+- Local `SKILL.md` loading and caching for the selected specialist.
+- A regex input filter, bounded requests, predictable provider errors, and an in-memory request log.
+- A workspace-contained file helper for Python callers; the CLI does not automatically open referenced paths.
 
-## 🧠 What is DevMind?
+There are no autonomous tools, code execution, repository modification, retrieval, persistent conversation memory, or deployment in this implementation. The class named `MCPServer` is a local Python helper: it does not implement the Model Context Protocol transport or server API.
 
-Developers frequently switch between multiple tools for reviewing code, writing documentation, and identifying security vulnerabilities. **DevMind** eliminates this friction by combining these capabilities into a unified multi-agent system.
+## Architecture
 
-Instead of relying on a single, general-purpose AI assistant, DevMind uses an **intelligent orchestrator** that:
-
-1. **Classifies** the developer's intent from natural language input
-2. **Guards** against dangerous or malicious inputs via a security layer
-3. **Routes** the request to the most specialized agent
-4. **Injects** domain-specific skill context via an MCP server
-5. **Returns** expert-level responses powered by Llama 3.3 70B on Groq
-
-> **Built for the [Kaggle AI Agents Intensive Capstone 2025](https://www.kaggle.com/competitions/ai-agents-intensive-capstone-2025)**
-
----
-
-## ✨ Features
-
-<table>
-<tr>
-<td width="50%">
-
-### 🤖 Multi-Agent Architecture
-Three specialized agents, each with domain-specific system prompts and behavior, orchestrated by an intent classifier.
-
-### 🔀 Automatic Task Routing
-Keyword-based intent classification routes requests to the right agent — no manual selection needed.
-
-### 🛡️ Security Guardrails
-Regex-based input filtering blocks dangerous patterns like `rm -rf`, `eval()`, `exec()`, `os.system()`, and `__import__`.
-
-</td>
-<td width="50%">
-
-### 📡 MCP Server Integration
-A Model Context Protocol server provides progressive skill disclosure — agents receive domain context only when needed.
-
-### 📋 Audit Logging
-Every interaction is logged with agent attribution and input tracking for full traceability.
-
-### ⚡ Groq-Powered Inference
-Ultra-fast LLM inference via Groq API running Llama 3.3 70B for production-grade responses.
-
-</td>
-</tr>
-</table>
-
----
-
-## 🏗️ Architecture
-
-<p align="center">
-  <img src="assets/architecture.png" alt="DevMind Architecture" width="700"/>
-</p>
-
-### Data Flow
-
-```
-Developer Input
-       │
-       ▼
-┌──────────────────┐
-│  Security Guard   │ ◄── Blocks dangerous patterns (rm -rf, eval, exec, etc.)
-└────────┬─────────┘
-         │ (safe input)
-         ▼
-┌──────────────────┐
-│   Orchestrator    │ ◄── Intent classification via keyword matching
-└────────┬─────────┘
-         │
-    ┌────┼────────────┐
-    │    │             │
-    ▼    ▼             ▼
-┌──────┐ ┌──────────┐ ┌──────────┐
-│ Code │ │ Security │ │   Doc    │
-│Analyst│ │ Scanner  │ │  Writer  │
-└──┬───┘ └────┬─────┘ └────┬─────┘
-   │          │             │
-   └──────────┼─────────────┘
-              │
-              ▼
-    ┌──────────────────┐
-    │ MCP Server       │ ◄── Loads SKILL.md context per agent
-    │ (Skill Context)  │
-    └────────┬─────────┘
-             │
-             ▼
-    ┌──────────────────┐
-    │ Groq API         │
-    │ Llama 3.3 70B    │ ◄── Fast inference endpoint
-    └──────────────────┘
+```mermaid
+flowchart LR
+    A[CLI text input] --> B[Validation and regex filter]
+    B --> C[Keyword router]
+    C --> D[One specialist agent]
+    E[Local SKILL.md cache] --> D
+    D --> F[Groq chat completion]
+    F --> G[Text response]
+    C --> H[In-memory request history]
 ```
 
----
+Security keywords take precedence over documentation keywords; other requests default to Code Analyst. Whole-word matching avoids routing `safe_divide` or `document_id` by substring. This rule is transparent and cheap, but ambiguous natural language and keywords inside pasted code can still select the wrong specialist.
 
-## 🚀 Quick Start
+Each call contains a specialist system prompt, skill context, and the current input. The model is `llama-3.3-70b-versatile`, with temperature `0.3`, a maximum of `1024` output tokens, and a `30` second HTTP timeout. A lower temperature does not guarantee deterministic answers. Output is free text; only the provider response envelope and non-empty content are validated.
 
-### Prerequisites
+## Install and run
 
-- Python 3.9+
-- A free [Groq API Key](https://console.groq.com/)
-
-### Installation
+Use Python 3.11 or later. Setup and offline checks were run locally with Python 3.11.15 and 3.13.0. The CI workflow targets both versions; a committed workflow alone is not evidence of a successful remote run.
 
 ```bash
-# Clone the repository
 git clone https://github.com/Raghuvansyn/DevMind.git
 cd DevMind
-
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Configure environment
-cp .env.example .env
-# Edit .env and add your Groq API key
+python3 -m venv .venv
+source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m pip check
 ```
 
-### Usage
+For live model responses, copy the environment template and set your own key:
 
 ```bash
+cp .env.example .env
+# Edit .env: GROQ_API_KEY=your_actual_key
 python orchestrator.py
 ```
 
-You'll see the interactive prompt:
+The application reads `.env` from the repository root. An existing environment variable takes precedence. A missing or placeholder key returns a configuration error before any HTTP request. No dataset, trained weights, or other model files are required. Groq access, model availability, usage limits, and billing depend on your provider account.
 
+Try this single-line request:
+
+```text
+Review def divide(a, b): return a / b for bugs
 ```
-DevMind ready. Type 'exit' to quit, 'log' to see audit trail.
-============================================================
 
-You: _
+It routes to `code_analyst` and sends the supplied text to Groq. Use `log` to inspect the current process's request history and `exit` to quit. Only submit source text you have permission to share with the provider; the process also retains accepted and blocked input in memory until exit.
+
+## Reproducible offline demonstration
+
+```bash
+python -m examples.offline_demo
 ```
 
----
+This exercises real routing, skill loading, HTTP payload construction, response formatting, and logging using **mocked provider responses**. It needs no key and makes no network requests. The fixture says that no model ran:
 
-## 🎬 Demo
-
-### 📺 Video Demo
-
-<p align="center">
-  <a href="https://youtu.be/-DHTtXIJ8g8">
-    <img src="https://img.shields.io/badge/Watch_Demo-YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="YouTube Demo"/>
-  </a>
-</p>
-
-### 💬 Sample Interactions
-
-<details>
-<summary><strong>🔍 Code Review</strong></summary>
-
-```
-You: review this function for bugs
-
-DevMind:
+```text
+OFFLINE DEMO: provider responses are mocked; no network or model inference.
 [ORCHESTRATOR] Routing to: code_analyst
-
 [Code Analyst]
-Issue: Division by Zero
-Explanation: The function does not validate the divisor before performing division.
-Fix:
-  Before: result = a / b
-  After:  if b == 0: raise ValueError("Divisor cannot be zero")
-          result = a / b
+[MOCK FIXTURE] Request and skill context received; no model ran.
 ```
 
-</details>
+The script also exercises Doc Writer, Security Scanner, and a blocked input. It validates the application's wiring; it does not demonstrate model review quality. The [previously recorded demo link](https://youtu.be/-DHTtXIJ8g8) is retained for context; its availability and contents were not verified during this review.
 
-<details>
-<summary><strong>🛡️ Security Scan</strong></summary>
+## Tests and evaluation
 
-```
-You: scan this code for SQL injection vulnerabilities
-
-DevMind:
-[ORCHESTRATOR] Routing to: security_scan
-
-[Security Scanner | Scan #1]
-RISK LEVEL: HIGH
-VULNERABILITY: SQL Injection
-DESCRIPTION: User input is directly concatenated into SQL query string.
-RECOMMENDATION: Use parameterized queries.
-  Before: query = f"SELECT * FROM users WHERE id = {user_input}"
-  After:  cursor.execute("SELECT * FROM users WHERE id = %s", (user_input,))
+```bash
+python -m unittest discover -v
+python -m examples.offline_demo
+python -m pip check
 ```
 
-</details>
+The suite uses Python's standard `unittest` tooling and mocks the HTTP boundary. It covers a complete routed request, skill injection, missing credentials, invalid input, blocked input, timeouts, HTTP failures, malformed provider responses, and file path containment including symlinks.
 
-<details>
-<summary><strong>📝 Documentation</strong></summary>
+`examples/routing_cases.json` contains 12 manually authored examples covering the three routes, security precedence, and two previous substring failures. All 12 matched their expected routes in the local run; all 11 test methods passed. These are small regression checks selected to exercise the rules, not an independent benchmark or a measure of natural language routing accuracy.
 
-```
-You: write a README for a Python web scraper project
+The local verification used Python 3.11.15 and 3.13.0, Requests 2.34.2, and python-dotenv 1.2.4. Dependency ranges allow compatible updates and do not constitute a fully locked environment. No live model evaluation, response accuracy, latency, cost, user adoption, scalability, or deployed availability has been measured here.
 
-DevMind:
-[ORCHESTRATOR] Routing to: doc_writer
+## Important files
 
-[Doc Writer]
-# Web Scraper
+| Path | Responsibility |
+| --- | --- |
+| `orchestrator.py` | CLI, validation, regex filter, routing, request history |
+| `agents/base_agent.py` | Prompt construction, Groq request, provider response validation |
+| `agents/code_analyst.py` | Code review prompt and display prefix |
+| `agents/doc_writer.py` | Documentation prompt and display prefix |
+| `agents/security_scan.py` | Security review prompt and in-process scan counter |
+| `skills/*/SKILL.md` | Local specialist instructions |
+| `mcp/mcp_server.py` | Local skill cache and workspace-contained text reader |
+| `tests/test_workflow.py` | Offline behavior and failure checks |
+| `examples/offline_demo.py` | Explicitly mocked end-to-end demonstration |
 
-## Overview
-A Python-based web scraper for extracting structured data from websites.
+## Limitations and next work
 
-## Installation
-pip install -r requirements.txt
+- The regex filter is a heuristic, not a sandbox or a prompt injection defense. It can reject legitimate vulnerability examples containing `eval(` or `os.system`. The application never executes generated code.
+- The file helper restricts paths to a configured workspace and allowed extensions, reads at most 100,000 bytes, and rejects non-UTF-8 content. It is a local convenience API, not an isolation boundary against concurrent filesystem changes. It is not connected to model tool calls.
+- A request is limited to 20,000 characters; this is a character limit, not a token budget. Large or ambiguous inputs may still fail or truncate output.
+- Model suggestions can be incorrect. There is no validated structured findings schema, static analysis integration, or quality evaluation set yet.
+- History is process-local and includes input, route, and basic outcome. It is not a persistent or tamper-resistant audit log. Invalid requests rejected before routing are not logged.
+- Provider failures return a concise error. There are no automatic retries, streaming responses, or multi-turn context.
 
-## Usage
-python scraper.py --url https://example.com --output data.json
-...
-```
+Useful next improvements are an explicit agent selector for ambiguous inputs, independently reviewed model quality cases with a rubric, and optional structured findings. RAG, GitHub integration, a real MCP server, and a web interface remain future work.
 
-</details>
+## Attribution and license
 
-<details>
-<summary><strong>🚫 Security Guard (Blocked Input)</strong></summary>
+The repository describes the project as a [Kaggle AI Agents Intensive Capstone 2025](https://www.kaggle.com/competitions/ai-agents-intensive-capstone-2025) project; this is context, not a claim of an award or verified submission. See the [implementation notes](KAGGLE_WRITEUP.md).
 
-```
-You: run rm -rf / on my system
-
-DevMind:
-[SECURITY] Blocked dangerous input.
-[BLOCKED] Input flagged by security guard.
-```
-
-</details>
-
----
-
-## 📁 Project Structure
-
-```
-DevMind/
-│
-├── 📄 orchestrator.py          # Main entry point — orchestrator + security guard + routing
-│
-├── 📂 agents/
-│   ├── __init__.py
-│   ├── base_agent.py           # Base class — Groq API integration & LLM calls
-│   ├── code_analyst.py         # Code review agent — bugs, performance, anti-patterns
-│   ├── security_scan.py        # Security agent — OWASP Top 10, vulnerability detection
-│   └── doc_writer.py           # Documentation agent — README, docstrings, comments
-│
-├── 📂 skills/
-│   ├── code_analyst/
-│   │   └── SKILL.md            # Skill context for code analysis
-│   ├── security_scan/
-│   │   └── SKILL.md            # Skill context for security scanning
-│   └── doc_writer/
-│       └── SKILL.md            # Skill context for documentation
-│
-├── 📂 mcp/
-│   ├── __init__.py
-│   └── mcp_server.py           # MCP server — skill loading, file reading, security
-│
-├── 📂 assets/
-│   ├── banner.png              # Repository banner image
-│   └── architecture.png        # Architecture diagram
-│
-├── 📄 requirements.txt         # Python dependencies
-├── 📄 .env.example             # Environment variable template
-├── 📄 .gitignore               # Git ignore rules
-├── 📄 KAGGLE_WRITEUP.md        # Kaggle capstone writeup
-├── 📄 LICENSE                  # MIT License
-└── 📄 README.md                # You are here
-```
-
----
-
-## ⚙️ How It Works
-
-### 1. Security Guard
-Before any processing, all input passes through a regex-based security filter that blocks dangerous patterns:
-
-```python
-BLOCKED = [r"(rm\s+-rf|sudo|eval\s*\(|exec\s*\(|__import__|os\.system)"]
-```
-
-### 2. Intent Classification
-The orchestrator classifies intent using keyword matching:
-
-| Keywords | Routed To |
-|---|---|
-| `security`, `vulnerability`, `scan`, `injection`, `exploit`, `safe` | 🛡️ Security Scanner |
-| `document`, `readme`, `docstring`, `comment`, `docs` | 📝 Doc Writer |
-| *(everything else)* | 🔍 Code Analyst |
-
-### 3. MCP Server & Progressive Disclosure
-Each agent has a corresponding `SKILL.md` file that defines its capabilities. The MCP server loads these on-demand and injects them into the agent's system prompt, giving it domain-specific context without bloating the base prompt.
-
-### 4. Agent Execution
-Each agent extends `BaseAgent`, which handles:
-- System prompt construction with skill context injection
-- Groq API communication (Llama 3.3 70B, temperature 0.3)
-- Error handling and response formatting
-
-### 5. Audit Logging
-Every interaction is recorded in-memory with the agent name and input text, accessible via the `log` command.
-
----
-
-## 📚 Concepts Demonstrated
-
-| Concept | Implementation |
-|---|---|
-| **Multi-Agent Orchestration** | Orchestrator dispatches to specialized agents based on intent |
-| **Intent Classification** | Keyword-based routing determines the best agent for each request |
-| **Tool Routing** | Automatic selection of the right tool (agent) for the job |
-| **MCP Server** | Model Context Protocol server for skill management and file access |
-| **Progressive Disclosure** | SKILL.md files provide context only when an agent is activated |
-| **Agent Specialization** | Each agent has a focused system prompt and domain expertise |
-| **Security Guardrails** | Regex-based input filtering blocks dangerous patterns |
-| **Audit Logging** | Full interaction history with agent attribution |
-| **Zero-Trust Security Design** | Security scanner uses ephemeral context — no state between scans |
-
----
-
-## 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| **Python 3.9+** | Core language |
-| **Llama 3.3 70B** | Large language model for agent intelligence |
-| **Groq API** | Ultra-fast LLM inference endpoint |
-| **MCP (Model Context Protocol)** | Skill context management and progressive disclosure |
-| **SKILL.md** | Declarative skill definitions for each agent |
-| **Requests** | HTTP client for API communication |
-| **python-dotenv** | Environment variable management |
-
----
-
-## 🔮 Future Improvements
-
-- [ ] 🌐 Web dashboard with real-time agent visualization
-- [ ] 🎤 Voice interface for hands-free coding assistance
-- [ ] 🔗 GitHub integration for automated PR reviews
-- [ ] 🧠 Memory & RAG for context-aware multi-turn conversations
-- [ ] 🐳 Docker deployment with one-command setup
-- [ ] ☁️ Cloud deployment (AWS / GCP / Azure)
-- [ ] 📊 Agent performance analytics and metrics
-- [ ] 🔌 Plugin system for custom agents
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Feel free to:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- **[Kaggle](https://www.kaggle.com/)** — AI Agents Intensive Capstone 2025
-- **[Groq](https://groq.com/)** — Ultra-fast LLM inference
-- **[Meta](https://ai.meta.com/)** — Llama 3.3 70B model
-
----
-
-<p align="center">
-  <strong>⭐ If you found this useful, please star the repository!</strong><br/><br/>
-  <a href="https://github.com/Raghuvansyn/DevMind">
-    <img src="https://img.shields.io/github/stars/Raghuvansyn/DevMind?style=social" alt="GitHub Stars"/>
-  </a>
-</p>
+Thanks to Kaggle for the program, Groq for the inference API, and Meta for Llama. The existing [MIT license](LICENSE) is unchanged.
